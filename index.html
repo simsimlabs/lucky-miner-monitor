@@ -6,65 +6,56 @@
     <title>🍀 Lucky Miner Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <script>
-        // 파스텔 다크 테마 색상 강제 지정
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        // 배경: 아주 어두운 남색 (Tokyo Night 테마 스타일)
                         page: '#1a1b26', 
-                        // 카드: 배경보다 살짝 밝은 남색
                         card: '#24283b', 
-                        // 텍스트: 눈이 편한 연한 회색/파스텔 블루
                         text: '#c0caf5',
                         muted: '#565f89',
-                        // 포인트 색상 (파스텔톤)
-                        accent: '#7aa2f7', // 블루
-                        success: '#9ece6a', // 그린
-                        warning: '#e0af68', // 오렌지
-                        error: '#f7768e',   // 레드
-                        input: '#16161e'    // 입력창 배경
+                        accent: '#7aa2f7', 
+                        success: '#9ece6a', 
+                        warning: '#e0af68', 
+                        error: '#f7768e',   
+                        input: '#16161e'
                     }
                 }
             }
         }
     </script>
     <style>
-        /* 강제 다크모드 적용 */
         body { background-color: #1a1b26; color: #c0caf5; font-family: 'Segoe UI', sans-serif; }
         .card { background-color: #24283b; border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
-        /* 입력창 스타일 */
-        input::placeholder { color: #565f89; }
+        /* 로딩 스피너 애니메이션 */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #7aa2f7; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
 
     <div class="max-w-[1600px] mx-auto">
-        
         <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <div>
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-accent to-success">
                     🍀 Lucky Miner Monitor
                 </h1>
-                <p id="last-update" class="text-sm mt-2 text-muted">데이터 대기 중...</p>
+                <p id="system-message" class="text-sm mt-2 text-muted">🟢 시스템 준비 완료</p>
             </div>
             
             <div class="card p-2 flex gap-2 w-full md:w-auto bg-[#16161e] border border-[#565f89]">
                 <input type="text" id="wallet-address" 
                        placeholder="비트코인 지갑 주소 (bc1...)" 
                        class="bg-transparent text-white px-4 py-2 w-full md:w-96 focus:outline-none placeholder-opacity-50 font-mono text-sm">
-                <button onclick="saveAndFetch()" class="bg-accent hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg shadow-blue-500/30 whitespace-nowrap">
+                <button onclick="saveAndFetch()" id="search-btn" class="bg-accent hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg whitespace-nowrap min-w-[100px]">
                     조회
                 </button>
             </div>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            
             <div class="card p-6 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10 text-9xl">🚀</div>
                 <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Hashrate (5m)</h3>
                 <div class="flex items-baseline gap-2">
                     <span id="hashrate" class="text-5xl font-mono font-bold text-white">0</span>
@@ -73,19 +64,18 @@
             </div>
 
             <div class="card p-6 relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10 text-9xl">🏆</div>
                 <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Best Share</h3>
                 <div class="flex items-baseline gap-2">
                     <span id="bestshare" class="text-4xl font-mono font-bold text-warning">0</span>
                 </div>
-                <p class="text-xs text-muted mt-2">목표 난이도: 100조 이상</p>
+                <p class="text-xs text-muted mt-2">목표: 100조 이상</p>
             </div>
 
             <div class="card p-6 flex flex-col justify-between">
                 <div>
                     <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Status</h3>
                     <div id="worker-status" class="text-2xl font-bold text-muted flex items-center gap-3">
-                        <span class="w-3 h-3 rounded-full bg-gray-600"></span> 연결 대기
+                        <span class="w-3 h-3 rounded-full bg-gray-600"></span> 대기 중
                     </div>
                 </div>
                 <div class="flex justify-between items-end mt-4 text-sm">
@@ -98,161 +88,110 @@
         <div class="card p-6">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    📊 실시간 해시레이트
+                    📊 실시간 차트
                 </h3>
-                <span class="text-xs text-muted px-2 py-1 bg-[#16161e] rounded">최근 10분</span>
             </div>
             <div class="w-full h-[450px]">
                 <canvas id="hashChart"></canvas>
             </div>
         </div>
-
     </div>
 
     <script>
-        // === 1. 차트 디자인 (파스텔 그라데이션) ===
         const ctx = document.getElementById('hashChart').getContext('2d');
         let gradient = ctx.createLinearGradient(0, 0, 0, 450);
-        gradient.addColorStop(0, 'rgba(122, 162, 247, 0.4)'); // 파스텔 블루
-        gradient.addColorStop(1, 'rgba(26, 27, 38, 0.0)');   // 투명
+        gradient.addColorStop(0, 'rgba(122, 162, 247, 0.4)');
+        gradient.addColorStop(1, 'rgba(26, 27, 38, 0.0)');
 
         const hashChart = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Hashrate',
-                    data: [],
-                    borderColor: '#7aa2f7',
-                    borderWidth: 3,
-                    backgroundColor: gradient,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#c0caf5'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#565f89', maxTicksLimit: 8 }
-                    },
-                    y: {
-                        border: { display: false },
-                        grid: { color: '#2f354b' },
-                        ticks: { color: '#565f89' }
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#16161e',
-                        titleColor: '#c0caf5',
-                        bodyColor: '#7aa2f7',
-                        borderColor: '#2f354b',
-                        borderWidth: 1,
-                        padding: 10,
-                        displayColors: false,
-                        callbacks: { label: (c) => ` ${c.parsed.y} GH/s` }
-                    }
-                }
-            }
+            data: { labels: [], datasets: [{ label: 'Hashrate', data: [], borderColor: '#7aa2f7', borderWidth: 3, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' }, scales: { x: { grid: { display: false }, ticks: { color: '#565f89', maxTicksLimit: 8 } }, y: { border: { display: false }, grid: { color: '#2f354b' }, ticks: { color: '#565f89' } } }, plugins: { legend: { display: false } } }
         });
 
-        // === 2. 핵심 기능 ===
-        
-        // 데이터 가져오기
         async function fetchData() {
-            // 저장된 주소 가져오기
             let address = localStorage.getItem('btc_wallet');
             const inputField = document.getElementById('wallet-address');
-
-            // 저장된 주소가 없으면 입력창 값이라도 확인
-            if (!address && inputField.value) {
-                address = inputField.value.trim();
-            }
-
-            // 주소가 없으면 중단
+            
+            if (!address && inputField.value) address = inputField.value.trim();
             if (!address) return;
-
-            // 입력창이 비어있으면 채워주기
             if (!inputField.value) inputField.value = address;
 
-            const url = `https://solo.ckpool.org/users/${address}`;
+            // --- UI: 로딩 상태 표시 ---
+            const btn = document.getElementById('search-btn');
+            const msg = document.getElementById('system-message');
+            btn.innerHTML = '<div class="spinner"></div>'; // 버튼을 스피너로 변경
+            msg.innerText = "🔄 데이터 서버에 연결 중...";
+            msg.className = "text-sm mt-2 text-warning animate-pulse";
+
+            // --- 핵심 수정: CORS 우회 프록시 사용 ---
+            // api.allorigins.win 이라는 공개 프록시를 통해 데이터를 가져옵니다.
+            const targetUrl = `https://solo.ckpool.org/users/${address}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&timestamp=${new Date().getTime()}`;
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('API 오류');
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) throw new Error('서버 응답 없음');
+                
                 const data = await response.json();
 
-                // 숫자 업데이트
+                // 데이터가 비어있거나 에러인 경우 체크
+                if (!data || !data.hashrate5m) {
+                    throw new Error('데이터 없음 (아직 채굴 기록이 없거나 주소 오류)');
+                }
+
                 const hashrate = parseFloat(data.hashrate5m.replace('G', ''));
                 document.getElementById('hashrate').innerText = hashrate.toLocaleString(undefined, {maximumFractionDigits: 1});
                 document.getElementById('bestshare').innerText = Math.floor(data.bestshare).toLocaleString();
                 document.getElementById('total-shares').innerText = data.shares.toLocaleString();
 
-                // 상태 업데이트
                 const statusElem = document.getElementById('worker-status');
                 if (data.workers > 0) {
-                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-success mr-2 shadow-[0_0_10px_#9ece6a]"></span> <span class="text-success">작동 중 (${data.workers})</span>`;
+                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-success mr-2 shadow-[0_0_10px_#9ece6a]"></span> <span class="text-success">정상 작동 중 (${data.workers})</span>`;
                 } else {
-                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-error mr-2"></span> <span class="text-error">연결 끊김</span>`;
+                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-error mr-2"></span> <span class="text-error">연결 끊김 (Offline)</span>`;
                 }
 
-                // 그래프 업데이트
+                // 그래프 갱신
                 const now = new Date();
                 const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                
-                if (hashChart.data.labels.length > 60) {
-                    hashChart.data.labels.shift();
-                    hashChart.data.datasets[0].data.shift();
-                }
+                if (hashChart.data.labels.length > 60) { hashChart.data.labels.shift(); hashChart.data.datasets[0].data.shift(); }
                 hashChart.data.labels.push(timeStr);
                 hashChart.data.datasets[0].data.push(hashrate);
-                hashChart.update('none'); // 깜빡임 없이 업데이트
+                hashChart.update('none');
 
-                document.getElementById('last-update').innerText = "마지막 업데이트: " + timeStr;
+                // UI 복구
+                msg.innerText = "🟢 데이터 수신 성공 (10초마다 갱신)";
+                msg.className = "text-sm mt-2 text-success";
 
             } catch (error) {
                 console.error(error);
-                document.getElementById('last-update').innerText = "데이터를 불러올 수 없습니다. (주소 확인 필요)";
+                msg.innerText = `🔴 오류 발생: ${error.message}`;
+                msg.className = "text-sm mt-2 text-error";
+                
+                // 혹시 모르니 상태창에도 표시
+                document.getElementById('worker-status').innerHTML = `<span class="text-error text-sm">데이터 수신 실패</span>`;
+            } finally {
+                btn.innerText = "조회"; // 버튼 원상복구
             }
         }
 
-        // 버튼 클릭 시 저장 및 조회
         function saveAndFetch() {
             const input = document.getElementById('wallet-address');
             const addr = input.value.trim();
-
-            if (!addr) {
-                alert("지갑 주소를 입력해주세요!");
-                return;
-            }
-
-            // 주소 저장
+            if (!addr) { alert("지갑 주소를 입력해주세요!"); return; }
             localStorage.setItem('btc_wallet', addr);
-            
-            // 그래프 초기화 후 재조회
-            hashChart.data.labels = [];
-            hashChart.data.datasets[0].data = [];
-            hashChart.update();
-            
+            hashChart.data.labels = []; hashChart.data.datasets[0].data = []; hashChart.update();
             fetchData();
         }
 
-        // 페이지 로드 시 자동 실행
         window.onload = function() {
             const savedAddr = localStorage.getItem('btc_wallet');
             if (savedAddr) {
                 document.getElementById('wallet-address').value = savedAddr;
                 fetchData();
             }
-            // 10초마다 자동 갱신
             setInterval(fetchData, 10000);
         };
     </script>
