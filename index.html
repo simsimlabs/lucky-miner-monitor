@@ -1,245 +1,259 @@
 <!DOCTYPE html>
-<html lang="ko" class="dark">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍀 Lucky Miner Dashboard</title>
+    <title>🍀 Lucky Miner Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script>
-        // 커스텀 파스텔톤 색상 설정
+        // 파스텔 다크 테마 색상 강제 지정
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        dark: {
-                            bg: '#1a1b26', // 더 부드러운 남색 배경
-                            card: '#24283b', // 카드 배경
-                            text: '#a9b1d6', // 기본 텍스트 (연한 회색)
-                            accent: '#7aa2f7', // 포인트 색상 (파스텔 블루)
-                            success: '#9ece6a', // 성공 (파스텔 그린)
-                            warning: '#e0af68', // 경고/강조 (파스텔 오렌지)
-                            error: '#f7768e'  // 오류 (파스텔 레드)
-                        }
+                        // 배경: 아주 어두운 남색 (Tokyo Night 테마 스타일)
+                        page: '#1a1b26', 
+                        // 카드: 배경보다 살짝 밝은 남색
+                        card: '#24283b', 
+                        // 텍스트: 눈이 편한 연한 회색/파스텔 블루
+                        text: '#c0caf5',
+                        muted: '#565f89',
+                        // 포인트 색상 (파스텔톤)
+                        accent: '#7aa2f7', // 블루
+                        success: '#9ece6a', // 그린
+                        warning: '#e0af68', // 오렌지
+                        error: '#f7768e',   // 레드
+                        input: '#16161e'    // 입력창 배경
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: theme('colors.dark.bg'); color: theme('colors.dark.text'); font-family: 'Spoqa Han Sans Neo', 'Segoe UI', sans-serif; }
-        .card { background-color: theme('colors.dark.card'); border-radius: 16px; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2); transition: transform 0.2s; }
-        /* .card:hover { transform: translateY(-2px); } */
-        .pastel-gradient { background: linear-gradient(135deg, #7aa2f7 0%, #9ece6a 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        /* 강제 다크모드 적용 */
+        body { background-color: #1a1b26; color: #c0caf5; font-family: 'Segoe UI', sans-serif; }
+        .card { background-color: #24283b; border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
+        /* 입력창 스타일 */
+        input::placeholder { color: #565f89; }
     </style>
 </head>
-<body class="min-h-screen p-6 md:p-10">
+<body class="min-h-screen p-4 md:p-8">
 
-    <div class="max-w-7xl mx-auto">
+    <div class="max-w-[1600px] mx-auto">
         
         <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <div>
-                <h1 class="text-4xl font-extrabold pastel-gradient">🍀 Lucky Miner Monitor</h1>
-                <p id="last-update" class="text-sm mt-2 opacity-70">업데이트 대기 중...</p>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-accent to-success">
+                    🍀 Lucky Miner Monitor
+                </h1>
+                <p id="last-update" class="text-sm mt-2 text-muted">데이터 대기 중...</p>
             </div>
-            <div class="card p-2 flex gap-2 w-full md:w-auto">
-                <input type="text" id="wallet-address" placeholder="비트코인 지갑 주소 (bc1q...)" 
-                       class="bg-transparent text-white px-4 py-2 rounded-lg w-full md:w-96 focus:outline-none focus:ring-2 focus:ring-dark-accent placeholder-gray-500">
-                <button onclick="saveAndFetch()" class="bg-dark-accent hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-bold transition whitespace-nowrap">
-                    조회 및 저장
+            
+            <div class="card p-2 flex gap-2 w-full md:w-auto bg-[#16161e] border border-[#565f89]">
+                <input type="text" id="wallet-address" 
+                       placeholder="비트코인 지갑 주소 (bc1...)" 
+                       class="bg-transparent text-white px-4 py-2 w-full md:w-96 focus:outline-none placeholder-opacity-50 font-mono text-sm">
+                <button onclick="saveAndFetch()" class="bg-accent hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg shadow-blue-500/30 whitespace-nowrap">
+                    조회
                 </button>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             
-            <div class="card p-6 flex flex-col justify-between">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="p-2 bg-dark-accent bg-opacity-20 rounded-lg">🚀</div>
-                    <h3 class="text-lg font-medium">현재 속도 (5분 평균)</h3>
-                </div>
-                <div class="text-right">
-                    <p id="hashrate" class="text-5xl font-mono font-extrabold text-white">0</p>
-                    <span class="text-xl text-dark-accent">GH/s</span>
+            <div class="card p-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-9xl">🚀</div>
+                <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Hashrate (5m)</h3>
+                <div class="flex items-baseline gap-2">
+                    <span id="hashrate" class="text-5xl font-mono font-bold text-white">0</span>
+                    <span class="text-xl text-accent">GH/s</span>
                 </div>
             </div>
 
-            <div class="card p-6 flex flex-col justify-between">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="p-2 bg-dark-warning bg-opacity-20 rounded-lg">🏆</div>
-                    <h3 class="text-lg font-medium">최고 기록 (Best Share)</h3>
+            <div class="card p-6 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-9xl">🏆</div>
+                <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Best Share</h3>
+                <div class="flex items-baseline gap-2">
+                    <span id="bestshare" class="text-4xl font-mono font-bold text-warning">0</span>
                 </div>
-                <div class="text-right">
-                    <p id="bestshare" class="text-4xl font-mono font-extrabold text-dark-warning break-all">0</p>
-                    <p class="text-sm mt-2 opacity-70">목표: 100조 (100,000G) 이상</p>
-                </div>
+                <p class="text-xs text-muted mt-2">목표 난이도: 100조 이상</p>
             </div>
 
-            <div class="card p-6 grid grid-cols-2 gap-4">
-                <div class="flex flex-col justify-center">
-                    <span class="text-sm opacity-70">총 제출 (Shares)</span>
-                    <span id="total-shares" class="text-2xl font-mono font-bold text-white mt-1">-</span>
+            <div class="card p-6 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Status</h3>
+                    <div id="worker-status" class="text-2xl font-bold text-muted flex items-center gap-3">
+                        <span class="w-3 h-3 rounded-full bg-gray-600"></span> 연결 대기
+                    </div>
                 </div>
-                <div class="flex flex-col justify-center items-end text-right">
-                    <span class="text-sm opacity-70">기기 상태</span>
-                    <span id="worker-status" class="text-xl font-bold mt-1 text-gray-500">
-                        <span class="inline-block w-3 h-3 rounded-full bg-gray-500 mr-2"></span>연결 대기
-                    </span>
+                <div class="flex justify-between items-end mt-4 text-sm">
+                    <span class="text-muted">Total Shares</span>
+                    <span id="total-shares" class="font-mono text-white text-lg">-</span>
                 </div>
             </div>
         </div>
 
         <div class="card p-6">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold flex items-center gap-2">
-                    <span class="text-2xl">📈</span> 실시간 속도 변화
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    📊 실시간 해시레이트
                 </h3>
-                <span class="text-sm opacity-70">최근 10분 데이터</span>
+                <span class="text-xs text-muted px-2 py-1 bg-[#16161e] rounded">최근 10분</span>
             </div>
-            <div class="w-full h-[400px]"> <canvas id="hashChart"></canvas>
+            <div class="w-full h-[450px]">
+                <canvas id="hashChart"></canvas>
             </div>
         </div>
 
-    </div> <script>
-        // === 1. 차트 초기화 및 설정 ===
+    </div>
+
+    <script>
+        // === 1. 차트 디자인 (파스텔 그라데이션) ===
         const ctx = document.getElementById('hashChart').getContext('2d');
-        // 파스텔톤 그라데이션 효과 생성
-        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(122, 162, 247, 0.5)'); // 파스텔 블루 (투명도)
-        gradient.addColorStop(1, 'rgba(122, 162, 247, 0.0)');
+        let gradient = ctx.createLinearGradient(0, 0, 0, 450);
+        gradient.addColorStop(0, 'rgba(122, 162, 247, 0.4)'); // 파스텔 블루
+        gradient.addColorStop(1, 'rgba(26, 27, 38, 0.0)');   // 투명
 
         const hashChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [{
-                    label: 'Hashrate (GH/s)',
+                    label: 'Hashrate',
                     data: [],
-                    borderColor: '#7aa2f7', // 파스텔 블루 선 색상
+                    borderColor: '#7aa2f7',
                     borderWidth: 3,
-                    backgroundColor: gradient, // 그라데이션 배경
+                    backgroundColor: gradient,
                     fill: true,
-                    tension: 0.4, // 부드러운 곡선
-                    pointRadius: 0, // 포인트 숨김 (깔끔하게)
-                    pointHoverRadius: 6
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#c0caf5'
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false, // 컨테이너 크기에 맞춤
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
                 scales: {
                     x: {
-                        grid: { display: false }, // X축 그리드 숨김
-                        ticks: { color: '#a9b1d6', maxTicksLimit: 6 } // X축 글자색 및 개수 제한
+                        grid: { display: false },
+                        ticks: { color: '#565f89', maxTicksLimit: 8 }
                     },
                     y: {
-                        beginAtZero: false, // 0부터 시작하지 않음 (변화 보기 쉽게)
-                        grid: { color: 'rgba(169, 177, 214, 0.1)' }, // Y축 그리드 연하게
-                        ticks: { color: '#a9b1d6' }
+                        border: { display: false },
+                        grid: { color: '#2f354b' },
+                        ticks: { color: '#565f89' }
                     }
                 },
                 plugins: {
-                    legend: { display: false }, // 범례 숨김
+                    legend: { display: false },
                     tooltip: {
-                        backgroundColor: '#24283b',
-                        titleColor: '#ffffff',
-                        bodyColor: '#a9b1d6',
+                        backgroundColor: '#16161e',
+                        titleColor: '#c0caf5',
+                        bodyColor: '#7aa2f7',
+                        borderColor: '#2f354b',
+                        borderWidth: 1,
+                        padding: 10,
                         displayColors: false,
-                        callbacks: { label: (context) => ` ${context.parsed.y} GH/s` }
+                        callbacks: { label: (c) => ` ${c.parsed.y} GH/s` }
                     }
                 }
             }
         });
 
-        // === 2. 데이터 가져오기 및 화면 갱신 함수 ===
+        // === 2. 핵심 기능 ===
+        
+        // 데이터 가져오기
         async function fetchData() {
-            const address = localStorage.getItem('btc_wallet');
-            // 주소가 없으면 아무것도 안 함
-            if (!address) {
-                document.getElementById('last-update').innerText = "지갑 주소를 입력해주세요.";
-                return;
+            // 저장된 주소 가져오기
+            let address = localStorage.getItem('btc_wallet');
+            const inputField = document.getElementById('wallet-address');
+
+            // 저장된 주소가 없으면 입력창 값이라도 확인
+            if (!address && inputField.value) {
+                address = inputField.value.trim();
             }
 
-            // 입력창에 저장된 주소 표시 (새로고침 시)
-            if(document.getElementById('wallet-address').value === "") {
-                document.getElementById('wallet-address').value = address;
-            }
+            // 주소가 없으면 중단
+            if (!address) return;
+
+            // 입력창이 비어있으면 채워주기
+            if (!inputField.value) inputField.value = address;
 
             const url = `https://solo.ckpool.org/users/${address}`;
 
             try {
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('네트워크 응답 오류');
+                if (!response.ok) throw new Error('API 오류');
                 const data = await response.json();
 
-                // --- 텍스트 데이터 업데이트 ---
-                const hashrateVal = parseFloat(data.hashrate5m.replace('G', ''));
-                // 숫자가 천 단위 넘어가면 콤마 찍기
-                document.getElementById('hashrate').innerText = hashrateVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+                // 숫자 업데이트
+                const hashrate = parseFloat(data.hashrate5m.replace('G', ''));
+                document.getElementById('hashrate').innerText = hashrate.toLocaleString(undefined, {maximumFractionDigits: 1});
                 document.getElementById('bestshare').innerText = Math.floor(data.bestshare).toLocaleString();
                 document.getElementById('total-shares').innerText = data.shares.toLocaleString();
-                
-                // --- 기기 상태 표시 ---
+
+                // 상태 업데이트
                 const statusElem = document.getElementById('worker-status');
-                if(data.workers > 0) {
-                    statusElem.innerHTML = `<span class="inline-block w-3 h-3 rounded-full bg-dark-success mr-2 animate-pulse"></span>🟢 작동 중 (${data.workers}대)`;
-                    statusElem.className = "text-xl font-bold mt-1 text-dark-success";
+                if (data.workers > 0) {
+                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-success mr-2 shadow-[0_0_10px_#9ece6a]"></span> <span class="text-success">작동 중 (${data.workers})</span>`;
                 } else {
-                    statusElem.innerHTML = `<span class="inline-block w-3 h-3 rounded-full bg-dark-error mr-2"></span>🔴 연결 없음`;
-                    statusElem.className = "text-xl font-bold mt-1 text-dark-error";
+                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-error mr-2"></span> <span class="text-error">연결 끊김</span>`;
                 }
 
-                // --- 업데이트 시간 갱신 ---
+                // 그래프 업데이트
                 const now = new Date();
-                document.getElementById('last-update').innerText = "마지막 갱신: " + now.toLocaleTimeString();
-
-                // --- 차트 데이터 업데이트 ---
-                const maxDataPoints = 60; // 약 10분치 데이터 (10초 * 60개)
-                if (hashChart.data.labels.length >= maxDataPoints) {
-                    hashChart.data.labels.shift(); // 가장 오래된 데이터 삭제
+                const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                if (hashChart.data.labels.length > 60) {
+                    hashChart.data.labels.shift();
                     hashChart.data.datasets[0].data.shift();
                 }
-                hashChart.data.labels.push(now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
-                hashChart.data.datasets[0].data.push(hashrateVal);
-                hashChart.update('none'); // 애니메이션 없이 부드럽게 업데이트
+                hashChart.data.labels.push(timeStr);
+                hashChart.data.datasets[0].data.push(hashrate);
+                hashChart.update('none'); // 깜빡임 없이 업데이트
+
+                document.getElementById('last-update').innerText = "마지막 업데이트: " + timeStr;
 
             } catch (error) {
-                console.error("데이터 불러오기 실패:", error);
-                document.getElementById('last-update').innerHTML = "<span class='text-dark-error'>데이터 불러오기 실패. 주소가 정확한지 확인해주세요.</span>";
-                // 주소가 틀렸을 경우 상태 초기화
-                document.getElementById('worker-status').innerHTML = `<span class="inline-block w-3 h-3 rounded-full bg-gray-500 mr-2"></span>주소 확인 필요`;
-                statusElem.className = "text-xl font-bold mt-1 text-gray-500";
+                console.error(error);
+                document.getElementById('last-update').innerText = "데이터를 불러올 수 없습니다. (주소 확인 필요)";
             }
         }
 
-        // === 3. 주소 저장 및 수동 조회 버튼 클릭 시 ===
+        // 버튼 클릭 시 저장 및 조회
         function saveAndFetch() {
-            const addr = document.getElementById('wallet-address').value.trim();
-            if (addr) {
-                // 주소 유효성 검사 (간단하게 길이로만 체크)
-                if (addr.length < 20 || !addr.startsWith('bc1')) {
-                    alert("올바른 비트코인 주소 형식이 아닙니다. (bc1...으로 시작)");
-                    return;
-                }
-                localStorage.setItem('btc_wallet', addr); // 로컬 스토리지에 저장
-                // 기존 그래프 데이터 초기화 (새 주소로 시작하므로)
-                hashChart.data.labels = [];
-                hashChart.data.datasets[0].data = [];
-                hashChart.update();
-                fetchData(); // 데이터 즉시 요청
-                alert("주소가 저장되었습니다. 데이터를 불러옵니다.");
-            } else {
+            const input = document.getElementById('wallet-address');
+            const addr = input.value.trim();
+
+            if (!addr) {
                 alert("지갑 주소를 입력해주세요!");
+                return;
             }
+
+            // 주소 저장
+            localStorage.setItem('btc_wallet', addr);
+            
+            // 그래프 초기화 후 재조회
+            hashChart.data.labels = [];
+            hashChart.data.datasets[0].data = [];
+            hashChart.update();
+            
+            fetchData();
         }
 
-        // === 4. 페이지 로드 시 실행 ===
+        // 페이지 로드 시 자동 실행
         window.onload = function() {
-            // 저장된 주소가 있는지 확인하고 바로 실행
-            fetchData();
-            // 10초마다 자동 갱신 시작
-            setInterval(fetchData, 10000); 
+            const savedAddr = localStorage.getItem('btc_wallet');
+            if (savedAddr) {
+                document.getElementById('wallet-address').value = savedAddr;
+                fetchData();
+            }
+            // 10초마다 자동 갱신
+            setInterval(fetchData, 10000);
         };
     </script>
 </body>
