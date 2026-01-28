@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucky Miner Pro Dashboard</title>
+    <title>Lucky Miner Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -193,7 +193,6 @@
             border-radius: 16px;
             padding: 20px;
             border: 1px solid rgba(255,255,255,0.03);
-            /* 높이를 고정하여 늘어나는 문제 해결 */
             height: 450px; 
             display: flex;
             flex-direction: column;
@@ -220,21 +219,22 @@
         <div class="header">
             <div class="logo">
                 <i class="fa-solid fa-layer-group"></i> Lucky Miner Monitor
+                <span id="system-message" style="font-size: 0.8rem; color: #94a3b8; margin-left: 15px; font-weight: normal;"></span>
             </div>
             <div class="search-container">
-                <input type="text" id="walletAddress" value="bc1qamnzxfy5x6uyfupekvrkskgwdsgd8dxlpcrshr" placeholder="Bitcoin Wallet Address">
-                <button onclick="manualUpdate()"><i class="fa-solid fa-rotate"></i> 조회</button>
+                <input type="text" id="wallet-address" value="bc1qamnzxfy5x6uyfupekvrkskgwdsgd8dxlpcrshr" placeholder="Bitcoin Wallet Address">
+                <button id="search-btn" onclick="saveAndFetch()"><i class="fa-solid fa-rotate"></i> 조회</button>
             </div>
         </div>
 
         <div class="stats-grid">
             <div class="card hash-card">
                 <div class="label">
-                    <span>Real-time Hashrate</span>
+                    <span>Hashrate (5m)</span>
                     <i class="fa-solid fa-bolt" style="color: var(--accent);"></i>
                 </div>
                 <div class="value hash-value" id="hashrate">0 <span class="unit">GH/s</span></div>
-                <div class="sub-info">5분 평균 데이터</div>
+                <div class="sub-info">Real-time Mining Speed</div>
             </div>
 
             <div class="card share-card">
@@ -242,22 +242,22 @@
                     <span>Best Share Difficulty</span>
                     <i class="fa-solid fa-trophy" style="color: var(--gold);"></i>
                 </div>
-                <div class="value share-value" id="bestShare">0</div>
-                <div class="sub-info">목표: 100조 이상 (행운 기원!)</div>
+                <div class="value share-value" id="bestshare">0</div>
+                <div class="sub-info">목표: 100조 이상 (Good Luck!)</div>
             </div>
 
             <div class="card status-card" id="statusCardBorder">
-                <div class="label">System Status</div>
-                <div id="statusBadge" class="status-badge loading">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i> 연결 대기
+                <div class="label">Worker Status</div>
+                <div id="worker-status-badge" class="status-badge loading">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> 대기 중
                 </div>
                 <div style="margin-top: 15px; display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-sub);">
                     <span>Total Shares:</span>
-                    <span id="totalShares" style="color: var(--text-main); font-family: 'JetBrains Mono';">0</span>
+                    <span id="total-shares" style="color: var(--text-main); font-family: 'JetBrains Mono';">0</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-sub); margin-top: 5px;">
                     <span>Last Update:</span>
-                    <span id="lastUpdate">-</span>
+                    <span id="last-update">-</span>
                 </div>
             </div>
         </div>
@@ -273,38 +273,25 @@
     </div>
 
     <script>
-        // === [연결 설정] AllOrigins 단일 프록시 사용 ===
-        const CORS_PROXY = "https://api.allorigins.win/raw?url=";
-        const API_URL = "https://luckymonitor.info/api/wallet/"; 
-
-        let updateTimer = null;
-        let chartInstance = null;
-        let errorCount = 0;
-        const ERROR_THRESHOLD = 3; 
+        // === [핵심 수정] 요청하신 AllOrigins 프록시 방식 적용 ===
+        // GitHub Pages의 CORS 문제를 해결하는 가장 확실한 방법입니다.
         
-        const MAX_DATA_POINTS = 60; 
-        let labels = [];
-        let dataPoints = [];
-
-        window.onload = () => {
-            initChart();
-            startAutoUpdate();
-        };
-
+        let hashChart;
+        
+        // 차트 초기화
         function initChart() {
             const ctx = document.getElementById('hashChart').getContext('2d');
-            
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            let gradient = ctx.createLinearGradient(0, 0, 0, 400);
             gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
             gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
 
-            chartInstance = new Chart(ctx, {
+            hashChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: [],
                     datasets: [{
                         label: 'Hashrate',
-                        data: dataPoints,
+                        data: [],
                         borderColor: '#3b82f6',
                         backgroundColor: gradient,
                         borderWidth: 2,
@@ -317,7 +304,7 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false, // 부모 컨테이너 크기에 맞춤
+                    maintainAspectRatio: false,
                     animation: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
@@ -331,7 +318,7 @@
                             padding: 10,
                             displayColors: false,
                             callbacks: {
-                                label: (context) => `${context.parsed.y.toFixed(0)} GH/s`
+                                label: (context) => `${context.parsed.y.toLocaleString()} GH/s`
                             }
                         }
                     },
@@ -350,84 +337,112 @@
             });
         }
 
-        function startAutoUpdate() {
-            manualUpdate();
-            updateTimer = setInterval(manualUpdate, 5000);
-        }
+        // === [데이터 가져오기] AllOrigins Proxy 사용 ===
+        async function fetchData() {
+            let address = localStorage.getItem('btc_wallet');
+            const inputField = document.getElementById('wallet-address');
+            
+            if (!address && inputField.value) address = inputField.value.trim();
+            if (!address) return;
+            if (!inputField.value) inputField.value = address;
 
-        async function manualUpdate() {
-            const wallet = document.getElementById('walletAddress').value.trim();
-            if (!wallet) return;
+            // UI: 로딩 상태 표시
+            const btn = document.getElementById('search-btn');
+            const msg = document.getElementById('system-message');
+            const badge = document.getElementById('worker-status-badge');
+            const card = document.getElementById('statusCardBorder');
 
-            const badge = document.getElementById('statusBadge');
-            if (badge.classList.contains('error')) {
-                updateStatusUI('loading');
-            }
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
+            msg.innerText = "데이터 서버에 연결 중...";
+            msg.style.color = "var(--warning)";
+
+            // [PROXY URL 구성]
+            const targetUrl = `https://solo.ckpool.org/users/${address}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&timestamp=${new Date().getTime()}`;
 
             try {
-                const targetUrl = `${API_URL}${wallet}?t=${new Date().getTime()}`;
-                
-                // [핵심] AllOrigins 프록시 사용 (가장 안정적)
-                const response = await fetch(CORS_PROXY + encodeURIComponent(targetUrl));
-                
-                if (!response.ok) throw new Error("Network response was not ok");
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('서버 응답 없음');
                 
                 const data = await response.json();
 
-                errorCount = 0;
-                updateStatusUI('active');
-                updateDashboard(data);
+                if (!data || !data.hashrate5m) {
+                    throw new Error('데이터 없음 (채굴 기록 없음)');
+                }
+
+                // === 데이터 파싱 및 UI 업데이트 ===
+                const hashrate = parseFloat(data.hashrate5m.replace('G', ''));
+                
+                // 1. 텍스트 업데이트
+                document.getElementById('hashrate').innerHTML = `${hashrate.toLocaleString(undefined, {maximumFractionDigits: 1})} <span class="unit">GH/s</span>`;
+                document.getElementById('bestshare').innerText = Math.floor(data.bestshare).toLocaleString();
+                document.getElementById('total-shares').innerText = data.shares.toLocaleString();
+                document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+
+                // 2. 상태 뱃지 업데이트
+                if (data.workers > 0) {
+                    badge.className = "status-badge active";
+                    badge.innerHTML = `<i class="fa-solid fa-wifi"></i> 정상 작동 (${data.workers})`;
+                    card.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                } else {
+                    badge.className = "status-badge error";
+                    badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 연결 끊김`;
+                    card.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                }
+
+                // 3. 차트 업데이트
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                if (hashChart.data.labels.length > 60) { 
+                    hashChart.data.labels.shift(); 
+                    hashChart.data.datasets[0].data.shift(); 
+                }
+                hashChart.data.labels.push(timeStr);
+                hashChart.data.datasets[0].data.push(hashrate);
+                hashChart.update('none'); // 애니메이션 없이 부드럽게
+
+                // 메시지 복구
+                msg.innerText = "🟢 데이터 수신 성공 (10초 주기 갱신)";
+                msg.style.color = "var(--success)";
 
             } catch (error) {
-                console.warn("Fetch Error:", error);
-                errorCount++;
+                console.error(error);
+                msg.innerText = `🔴 오류: ${error.message}`;
+                msg.style.color = "var(--danger)";
                 
-                if (errorCount >= ERROR_THRESHOLD) {
-                    updateStatusUI('error');
-                }
+                badge.className = "status-badge error";
+                badge.innerHTML = `<i class="fa-solid fa-xmark"></i> 수신 실패`;
+                
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-rotate"></i> 조회';
             }
         }
 
-        function updateDashboard(data) {
-            const hashrate = parseFloat(data.hashrate || data.hashrate_5m || 0);
-            const bestShare = parseInt(data.best_share || data.best_difficulty || 0);
-            const totalShares = parseInt(data.total_shares || data.shares_valid || 0);
-
-            document.getElementById('hashrate').innerHTML = `${hashrate.toLocaleString()} <span class="unit">GH/s</span>`;
-            document.getElementById('bestShare').innerText = bestShare.toLocaleString();
-            document.getElementById('totalShares').innerText = totalShares.toLocaleString();
-            document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString();
-
-            const now = new Date();
-            const timeLabel = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-
-            labels.push(timeLabel);
-            dataPoints.push(hashrate);
-
-            if (labels.length > MAX_DATA_POINTS) {
-                labels.shift();
-                dataPoints.shift();
-            }
-            chartInstance.update('none');
-        }
-
-        function updateStatusUI(state) {
-            const badge = document.getElementById('statusBadge');
-            const card = document.getElementById('statusCardBorder');
+        function saveAndFetch() {
+            const input = document.getElementById('wallet-address');
+            const addr = input.value.trim();
+            if (!addr) { alert("지갑 주소를 입력해주세요!"); return; }
+            localStorage.setItem('btc_wallet', addr);
             
-            badge.className = 'status-badge ' + state;
+            // 차트 초기화 후 조회
+            hashChart.data.labels = []; 
+            hashChart.data.datasets[0].data = []; 
+            hashChart.update();
             
-            if (state === 'active') {
-                badge.innerHTML = '<i class="fa-solid fa-wifi"></i> 정상 작동';
-                card.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-            } else if (state === 'error') {
-                badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 연결 실패';
-                card.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-            } else {
-                badge.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 연결 중...';
-                card.style.borderColor = 'rgba(255, 255, 255, 0.03)';
-            }
+            fetchData();
         }
+
+        window.onload = function() {
+            initChart();
+            const savedAddr = localStorage.getItem('btc_wallet');
+            if (savedAddr) {
+                document.getElementById('wallet-address').value = savedAddr;
+                fetchData();
+            }
+            // 10초마다 자동 갱신 (서버 부하 방지)
+            setInterval(fetchData, 10000);
+        };
     </script>
 </body>
 </html>
