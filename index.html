@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍀 Lucky Miner Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+        .card { background-color: #1e293b; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-3xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-green-400">🍀 Lucky Miner Monitor</h1>
+            <span id="last-update" class="text-xs text-gray-400">업데이트 대기 중...</span>
+        </header>
+
+        <div class="card mb-6 flex gap-2">
+            <input type="text" id="wallet-address" placeholder="비트코인 지갑 주소를 입력하세요" 
+                   class="w-full bg-slate-700 text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+            <button onclick="saveAndFetch()" class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded font-bold transition">조회</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="card text-center">
+                <h3 class="text-gray-400 text-sm mb-1">현재 속도 (5m)</h3>
+                <p id="hashrate" class="text-4xl font-mono font-bold text-white">0 <span class="text-lg text-gray-500">GH/s</span></p>
+            </div>
+            <div class="card text-center">
+                <h3 class="text-gray-400 text-sm mb-1">최고 기록 (Best Share)</h3>
+                <p id="bestshare" class="text-4xl font-mono font-bold text-yellow-400">0</p>
+                <p class="text-xs text-gray-500 mt-2">목표: 100조+</p>
+            </div>
+        </div>
+
+        <div class="card mb-6 grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-400">총 제출 (Shares):</span>
+                <span id="total-shares" class="float-right font-mono text-white">-</span>
+            </div>
+            <div>
+                <span class="text-gray-400">기기 상태:</span>
+                <span id="worker-status" class="float-right font-bold text-gray-500">연결 대기</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="text-gray-400 text-sm mb-4">실시간 속도 변화 (창을 켜두면 기록됩니다)</h3>
+            <canvas id="hashChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // 차트 설정
+        const ctx = document.getElementById('hashChart').getContext('2d');
+        const hashChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Hashrate (GH/s)', data: [], borderColor: '#4ade80', tension: 0.4, borderWidth: 2, pointRadius: 0 }] },
+            options: { responsive: true, scales: { x: { display: false }, y: { beginAtZero: false, grid: { color: '#334155' } } }, plugins: { legend: { display: false } } }
+        });
+
+        // 데이터 가져오기 함수
+        async function fetchData() {
+            const address = localStorage.getItem('btc_wallet');
+            if (!address) return;
+
+            document.getElementById('wallet-address').value = address;
+            const url = `https://solo.ckpool.org/users/${address}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                // 텍스트 업데이트
+                const hashrateVal = data.hashrate5m.replace('G', ''); // '500G'에서 숫자만 추출
+                document.getElementById('hashrate').innerText = hashrateVal;
+                document.getElementById('bestshare').innerText = Math.floor(data.bestshare).toLocaleString(); // 쉼표 추가
+                document.getElementById('total-shares').innerText = data.shares.toLocaleString();
+                
+                // 상태 표시
+                const statusElem = document.getElementById('worker-status');
+                if(data.workers > 0) {
+                    statusElem.innerText = "🟢 작동 중 (" + data.workers + "대)";
+                    statusElem.className = "float-right font-bold text-green-500";
+                } else {
+                    statusElem.innerText = "🔴 정지됨";
+                    statusElem.className = "float-right font-bold text-red-500";
+                }
+
+                // 업데이트 시간
+                const now = new Date();
+                document.getElementById('last-update').innerText = "마지막 갱신: " + now.toLocaleTimeString();
+
+                // 차트 업데이트 (현재 시간과 해시레이트 추가)
+                if (hashChart.data.labels.length > 50) { // 데이터 50개 넘으면 앞부분 삭제
+                    hashChart.data.labels.shift();
+                    hashChart.data.datasets[0].data.shift();
+                }
+                hashChart.data.labels.push(now.toLocaleTimeString());
+                hashChart.data.datasets[0].data.push(parseFloat(hashrateVal));
+                hashChart.update();
+
+            } catch (error) {
+                console.error("데이터 불러오기 실패:", error);
+                document.getElementById('last-update').innerText = "데이터 불러오기 실패 (주소 확인 필요)";
+            }
+        }
+
+        // 주소 저장 및 최초 실행
+        function saveAndFetch() {
+            const addr = document.getElementById('wallet-address').value;
+            if (addr) {
+                localStorage.setItem('btc_wallet', addr);
+                fetchData();
+            } else {
+                alert("지갑 주소를 입력해주세요!");
+            }
+        }
+
+        // 페이지 로드 시 저장된 주소가 있으면 자동 실행
+        window.onload = function() {
+            const savedAddr = localStorage.getItem('btc_wallet');
+            if(savedAddr) {
+                document.getElementById('wallet-address').value = savedAddr;
+                fetchData();
+            }
+            // 10초마다 자동 갱신
+            setInterval(fetchData, 10000); 
+        };
+    </script>
+</body>
+</html>
