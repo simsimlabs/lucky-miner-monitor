@@ -28,7 +28,7 @@
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 20px;
-            height: 100vh;
+            min-height: 100vh;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -158,24 +158,18 @@
             font-family: 'Inter', sans-serif;
         }
 
-        /* 1. 해시레이트 카드 */
+        /* 카드별 스타일 */
         .card.hash-card {
             background: linear-gradient(145deg, #1e2230 0%, #23273a 100%);
             border-left: 4px solid var(--accent);
         }
         .hash-value { color: #fff; text-shadow: 0 0 20px var(--accent-glow); }
 
-        /* 2. 쉐어 카드 */
-        .card.share-card {
-            border-left: 4px solid var(--gold);
-        }
+        .card.share-card { border-left: 4px solid var(--gold); }
         .share-value { color: var(--gold); }
         .sub-info { font-size: 0.85rem; color: var(--text-sub); margin-top: 5px; }
 
-        /* 3. 상태 카드 */
-        .card.status-card {
-            border-left: 4px solid var(--text-sub);
-        }
+        .card.status-card { border-left: 4px solid var(--text-sub); }
         
         .status-badge {
             display: inline-flex;
@@ -193,14 +187,24 @@
         .status-badge.error { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
         .status-badge.loading { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
 
-        /* 차트 영역 */
+        /* [수정] 차트 영역 높이 고정 (무한 늘어짐 방지) */
         .chart-wrapper {
             background: var(--bg-card);
             border-radius: 16px;
             padding: 20px;
-            flex-grow: 1;
-            min-height: 400px;
             border: 1px solid rgba(255,255,255,0.03);
+            /* 높이를 고정하여 늘어나는 문제 해결 */
+            height: 450px; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
         }
 
         @media (max-width: 1000px) {
@@ -262,23 +266,22 @@
             <div class="label" style="margin-bottom: 15px;">
                 <i class="fa-solid fa-chart-area"></i> Hashrate History (Live)
             </div>
-            <div style="height: 100%; min-height: 350px;">
+            <div class="chart-container">
                 <canvas id="hashChart"></canvas>
             </div>
         </div>
     </div>
 
     <script>
-        // === [연결 설정] 제일 잘 되었던 AllOrigins 단일 프록시 사용 ===
+        // === [연결 설정] AllOrigins 단일 프록시 사용 ===
         const CORS_PROXY = "https://api.allorigins.win/raw?url=";
         const API_URL = "https://luckymonitor.info/api/wallet/"; 
 
         let updateTimer = null;
         let chartInstance = null;
         let errorCount = 0;
-        const ERROR_THRESHOLD = 3; // 3번 연속 실패 시 에러 표시 (깜빡임 방지)
+        const ERROR_THRESHOLD = 3; 
         
-        // 차트 데이터
         const MAX_DATA_POINTS = 60; 
         let labels = [];
         let dataPoints = [];
@@ -314,7 +317,7 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: false, // 부모 컨테이너 크기에 맞춤
                     animation: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
@@ -356,24 +359,21 @@
             const wallet = document.getElementById('walletAddress').value.trim();
             if (!wallet) return;
 
-            // 에러 상태가 아닐 땐 굳이 로딩바를 띄우지 않음 (부드러운 UX)
             const badge = document.getElementById('statusBadge');
             if (badge.classList.contains('error')) {
                 updateStatusUI('loading');
             }
 
             try {
-                // 타임스탬프로 캐시 방지
                 const targetUrl = `${API_URL}${wallet}?t=${new Date().getTime()}`;
                 
-                // [핵심] 가장 안정적이었던 AllOrigins 프록시 사용
+                // [핵심] AllOrigins 프록시 사용 (가장 안정적)
                 const response = await fetch(CORS_PROXY + encodeURIComponent(targetUrl));
                 
                 if (!response.ok) throw new Error("Network response was not ok");
                 
                 const data = await response.json();
 
-                // 성공 시 처리
                 errorCount = 0;
                 updateStatusUI('active');
                 updateDashboard(data);
@@ -382,7 +382,6 @@
                 console.warn("Fetch Error:", error);
                 errorCount++;
                 
-                // 3번 연속 실패해야만 에러 표시 (잠깐의 끊김은 무시)
                 if (errorCount >= ERROR_THRESHOLD) {
                     updateStatusUI('error');
                 }
@@ -390,18 +389,15 @@
         }
 
         function updateDashboard(data) {
-            // 데이터 파싱 (API 구조에 따라 유연하게)
             const hashrate = parseFloat(data.hashrate || data.hashrate_5m || 0);
             const bestShare = parseInt(data.best_share || data.best_difficulty || 0);
             const totalShares = parseInt(data.total_shares || data.shares_valid || 0);
 
-            // UI 텍스트 업데이트
             document.getElementById('hashrate').innerHTML = `${hashrate.toLocaleString()} <span class="unit">GH/s</span>`;
             document.getElementById('bestShare').innerText = bestShare.toLocaleString();
             document.getElementById('totalShares').innerText = totalShares.toLocaleString();
             document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString();
 
-            // 차트 데이터 업데이트
             const now = new Date();
             const timeLabel = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
 
@@ -412,25 +408,24 @@
                 labels.shift();
                 dataPoints.shift();
             }
-            chartInstance.update('none'); // 애니메이션 없이 즉시 반영
+            chartInstance.update('none');
         }
 
         function updateStatusUI(state) {
             const badge = document.getElementById('statusBadge');
             const card = document.getElementById('statusCardBorder');
             
-            // 기존 클래스 제거 후 새 상태 적용
             badge.className = 'status-badge ' + state;
             
             if (state === 'active') {
                 badge.innerHTML = '<i class="fa-solid fa-wifi"></i> 정상 작동';
-                card.style.borderColor = 'rgba(16, 185, 129, 0.3)'; // 초록 테두리
+                card.style.borderColor = 'rgba(16, 185, 129, 0.3)';
             } else if (state === 'error') {
                 badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 연결 실패';
-                card.style.borderColor = 'rgba(239, 68, 68, 0.5)'; // 빨강 테두리
+                card.style.borderColor = 'rgba(239, 68, 68, 0.5)';
             } else {
                 badge.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 연결 중...';
-                card.style.borderColor = 'rgba(255, 255, 255, 0.03)'; // 기본
+                card.style.borderColor = 'rgba(255, 255, 255, 0.03)';
             }
         }
     </script>
