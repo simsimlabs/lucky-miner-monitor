@@ -26,7 +26,6 @@
             align-items: center;
         }
 
-        /* 헤더 스타일 */
         header {
             width: 100%;
             max-width: 1100px;
@@ -47,6 +46,12 @@
             letter-spacing: 2px;
         }
 
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .status-badge {
             background: rgba(0, 255, 234, 0.1);
             border: 1px solid var(--primary);
@@ -58,7 +63,24 @@
             box-shadow: 0 0 10px rgba(0, 255, 234, 0.2);
         }
 
-        /* 그리드 레이아웃 */
+        .miner-link-btn {
+            background: #222;
+            color: #fff;
+            text-decoration: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            font-size: 0.8rem;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .miner-link-btn:hover {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -67,7 +89,6 @@
             max-width: 1100px;
         }
 
-        /* 카드 스타일 */
         .card {
             background: var(--panel);
             border: 1px solid #333;
@@ -110,13 +131,11 @@
             margin-top: 10px;
         }
 
-        /* 하단 차트 영역 */
         .chart-section {
-            grid-column: 1 / -1; /* 전체 너비 사용 */
+            grid-column: 1 / -1;
             height: 350px;
         }
 
-        /* 네트워크 정보 섹션 (작은 카드들) */
         .network-info {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -137,10 +156,6 @@
             color: #444;
             font-size: 0.8rem;
         }
-
-        /* 로딩 애니메이션 */
-        .blink { animation: blinker 1.5s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
@@ -150,37 +165,32 @@
             <h1>XEC MINER <span style="font-size:0.5em; color:#fff;">LV06</span></h1>
             <div style="font-size: 0.8rem; color: #666; margin-top: 5px;">POOL: Solopool.org</div>
         </div>
-        <div class="status-badge" id="conn-status">SYSTEM READY</div>
+        <div class="header-controls">
+            <a href="http://172.30.1.9" target="_blank" class="miner-link-btn">
+                ⚙️ 기계 접속 (내부망)
+            </a>
+            <div class="status-badge" id="conn-status">SYSTEM READY</div>
+        </div>
     </header>
 
     <div class="dashboard-grid">
-        
         <div class="card">
-            <div class="card-title">
-                MY HASHRATE
-                <span style="color:var(--primary)">⚡</span>
-            </div>
+            <div class="card-title">MY HASHRATE <span style="color:var(--primary)">⚡</span></div>
             <div class="card-value" id="my-hash">0.00</div>
             <span class="card-unit">GH/s</span>
-            <div class="sub-info" id="hash-msg">대기 중...</div>
+            <div class="sub-info" id="hash-msg">데이터 수신 대기 중...</div>
         </div>
 
         <div class="card">
-            <div class="card-title">
-                UNPAID BALANCE
-                <span>💰</span>
-            </div>
+            <div class="card-title">UNPAID BALANCE <span>💰</span></div>
             <div class="card-value" id="my-balance">0</div>
             <span class="card-unit">XEC</span>
             <div class="sub-info">≈ <span id="krw-balance">0</span> KRW</div>
         </div>
 
         <div class="card">
-            <div class="card-title">
-                MARKET PRICE
-                <span>📈</span>
-            </div>
-            <div class="card-value" id="xec-price">0.00</div>
+            <div class="card-title">MARKET PRICE <span>📈</span></div>
+            <div class="card-value" id="xec-price">Loading</div>
             <span class="card-unit">KRW</span>
             <div class="sub-info">1 XEC = <span id="btc-price">0.00000000</span> BTC</div>
         </div>
@@ -201,34 +211,29 @@
                     <div class="mini-val" id="net-hash">-</div>
                 </div>
                 <div class="mini-stat">
-                    <div class="mini-label">ALGO</div>
-                    <div class="mini-val">SHA-256</div>
+                    <div class="mini-label">STATUS</div>
+                    <div class="mini-val" style="color:#0f0">ONLINE</div>
                 </div>
             </div>
         </div>
 
         <div class="card chart-section">
-            <div class="card-title">REAL-TIME HASHRATE HISTORY (10분 단위)</div>
+            <div class="card-title">REAL-TIME HASHRATE HISTORY</div>
             <canvas id="miningChart"></canvas>
         </div>
-
     </div>
 
-    <footer>
-        SimSim Labs Mining Dashboard | Data source: Solopool API & CoinGecko
-    </footer>
+    <footer>SimSim Labs Mining Dashboard | Data source: Solopool API (via Proxy)</footer>
 
     <script>
         // ===============================================
-        // 👇 [설정] 본인의 XEC 지갑 주소를 입력하세요 👇
+        // 👇 [필수] 본인의 XEC 지갑 주소를 입력하세요 👇
         // ===============================================
         const ADDRESS = 'ecash:qruxd8mld78ckfzfclkrez3vaup5kphcncur7xsmhk'; 
-        // 예: const ADDRESS = 'ecash:qpm2qsznhks23z7629mms6s4cwef74vcwva876kd';
-        
-        // 갱신 주기 (초)
-        const INTERVAL = 30; 
+        // 예시: const ADDRESS = 'ecash:qpm2qsznhks23z7629mms6s4cwef74vcwva876kd';
+        // (ecash: 포함해도 되고 빼도 됨)
 
-        // 차트 설정
+        const INTERVAL = 30; 
         const ctx = document.getElementById('miningChart').getContext('2d');
         const miningChart = new Chart(ctx, {
             type: 'line',
@@ -241,112 +246,87 @@
                     backgroundColor: 'rgba(0, 255, 234, 0.1)',
                     borderWidth: 2,
                     fill: true,
-                    tension: 0.4,
-                    pointRadius: 3
+                    tension: 0.4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { grid: { display: false }, ticks: { color: '#666' } },
+                    x: { display: false },
                     y: { grid: { color: '#222' }, ticks: { color: '#666' }, beginAtZero: true }
                 },
-                plugins: { legend: { display: false } },
-                animation: { duration: 0 }
+                plugins: { legend: { display: false } }
             }
         });
 
-        // 데이터 가져오기 함수
+        // 프록시를 통한 데이터 가져오기 (CORS 해결!)
+        async function fetchWithProxy(url) {
+            try {
+                // allorigins 프록시 사용
+                const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                return await response.json();
+            } catch (error) {
+                console.error("Proxy Fetch Error:", error);
+                return null;
+            }
+        }
+
         async function fetchData() {
             try {
-                // 1. 코인 가격 (CoinGecko)
+                // 1. 가격 정보 (CoinGecko는 직접 호출 가능)
                 const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ecash&vs_currencies=krw,btc');
                 const priceData = await priceRes.json();
-                const krwPrice = priceData.ecash.krw;
-                
-                document.getElementById('xec-price').innerText = krwPrice.toFixed(4);
+                const krw = priceData.ecash.krw;
+                document.getElementById('xec-price').innerText = krw.toFixed(4);
                 document.getElementById('btc-price').innerText = priceData.ecash.btc.toFixed(8);
 
-                // 2. 솔로풀 데이터 (내 정보 + 네트워크 정보)
-                // Solopool API 구조는 보통 표준화되어 있습니다.
+                // 2. 네트워크 정보 (Solopool -> Proxy)
+                const statsData = await fetchWithProxy('https://xec.solopool.org/api/stats');
                 
-                // A. 내 정보
-                const walletUrl = `https://xec.solopool.org/api/stats`; 
-                // 주의: Solopool 공식 API 엔드포인트가 상황에 따라 다를 수 있어, 
-                // 여기서는 가장 일반적인 방식(전체 통계에서 내 주소 찾기 불가능하면 개별 조회)을 써야하는데,
-                // Solopool은 보통 /api/worker_stats?address=주소 형식을 씁니다.
-                // 만약 안 되면 0으로 뜹니다.
-                
-                // (CORS 문제 회피를 위해 실제로는 백엔드 프록시가 필요하지만, 일단 직접 시도)
-                // 여기서는 "네트워크 통계"를 가져와서 보여주는 것에 집중합니다.
-                const statsRes = await fetch('https://xec.solopool.org/api/stats');
-                const statsData = await statsRes.json();
-
-                // 네트워크 정보 업데이트
-                if(statsData.nodes && statsData.nodes[0]) {
+                if(statsData && statsData.nodes && statsData.nodes[0]) {
                     document.getElementById('net-diff').innerText = parseFloat(statsData.nodes[0].difficulty).toFixed(2);
                     document.getElementById('net-blocks').innerText = statsData.nodes[0].height;
-                    document.getElementById('net-hash').innerText = (statsData.nodes[0].network_hashrate / 1000000000000000).toFixed(2) + ' PH/s';
+                    const netHash = (statsData.nodes[0].network_hashrate / 1000000000000000).toFixed(2);
+                    document.getElementById('net-hash').innerText = netHash + ' PH/s';
                 }
 
-                // B. 내 채굴기 정보 (API 지원 시)
-                // Solopool 계열 API 시도: /api/accounts/주소
-                const myRes = await fetch(`https://xec.solopool.org/api/accounts/${ADDRESS}`);
-                const myData = await myRes.json();
+                // 3. 내 채굴 정보 (Solopool -> Proxy)
+                // 중요: 사용자가 첫 쉐어를 발견하기 전까진 API가 404 에러를 낼 수 있음
+                const myData = await fetchWithProxy(`https://xec.solopool.org/api/accounts/${ADDRESS}`);
 
-                // 해시레이트 & 잔고
                 let currentHash = 0;
                 let balance = 0;
 
-                if (myData.hashrate) {
-                    // 해시레이트 문자열(1.5 G, 500 M 등)을 숫자로 변환하는 로직 필요할 수 있음
-                    // API가 날것(raw number)으로 준다고 가정
-                    currentHash = (myData.hashrate / 1000000000).toFixed(2); // H/s -> GH/s
-                }
-                
-                // stats에서 workers 리스트가 있다면 거기서 찾기 (보완책)
-                // (복잡하니 생략, 기본 accounts 엔드포인트 신뢰)
-
-                if (myData.stats && myData.stats.balance) {
-                    balance = (myData.stats.balance / 100000000).toFixed(2); // Satoshi 단위일 경우
-                    // 단위가 그냥 XEC면 그대로 사용
-                    if(myData.stats.balance < 1000000) balance = myData.stats.balance; 
+                if (myData) {
+                    if (myData.hashrate) currentHash = (parseFloat(myData.hashrate) / 1000000000).toFixed(2);
+                    if (myData.stats && myData.stats.balance) balance = (myData.stats.balance / 100000000).toFixed(4);
                 }
 
-                // 화면 업데이트
-                // API 연결 실패 또는 데이터 없을 때 0 표시
-                const displayHash = myData.hashrate ? myData.hashrate : "0.00"; 
-                // 참고: Solopool API가 문자열로 "500 MH/s" 이렇게 줄 수도 있음.
-                
-                document.getElementById('my-hash').innerText = displayHash;
-                document.getElementById('my-balance').innerText = myData.stats ? myData.stats.paid : 0; // paid or pending
-                
-                // 상태 표시
+                document.getElementById('my-hash').innerText = currentHash;
+                document.getElementById('my-balance').innerText = balance;
+                document.getElementById('krw-balance').innerText = Math.floor(balance * krw).toLocaleString();
+
+                // 상태 메시지 업데이트
                 const statusBadge = document.getElementById('conn-status');
-                if (displayHash !== "0.00" && displayHash !== 0) {
+                const hashMsg = document.getElementById('hash-msg');
+
+                if (parseFloat(currentHash) > 0) {
                     statusBadge.innerText = "MINING ACTIVE 🟢";
                     statusBadge.style.color = "#00ffea";
-                    statusBadge.style.borderColor = "#00ffea";
-                    document.getElementById('hash-msg').innerText = "정상 채굴 중";
+                    hashMsg.innerText = "정상 채굴 중 (Nice!)";
                 } else {
-                    statusBadge.innerText = "WAITING / SYNC 🟡";
+                    // 데이터는 왔는데 해시가 0인 경우
+                    statusBadge.innerText = "WAITING DATA 🟡";
                     statusBadge.style.color = "yellow";
-                    statusBadge.style.borderColor = "yellow";
-                    document.getElementById('hash-msg').innerText = "데이터 수신 대기 중 (1~10분 소요)";
+                    hashMsg.innerText = "데이터 집계 중 (10분 이상 소요)";
                 }
 
-                // 차트 업데이트
-                const now = new Date().toLocaleTimeString();
-                // 숫자만 추출 (GH/s 떼고)
-                let hashNum = parseFloat(displayHash); 
-                if(isNaN(hashNum)) hashNum = 0;
-
-                addDataToChart(now, hashNum);
+                addDataToChart(new Date().toLocaleTimeString(), parseFloat(currentHash));
 
             } catch (e) {
-                console.log("API Error:", e);
-                // 에러 나도 이전 데이터 유지하거나 대기 메시지
+                console.log("General Error:", e);
             }
         }
 
@@ -360,10 +340,8 @@
             miningChart.update();
         }
 
-        // 실행
         fetchData();
         setInterval(fetchData, INTERVAL * 1000);
-
     </script>
 </body>
 </html>
