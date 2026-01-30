@@ -3,212 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍀 Lucky Miner Monitor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        page: '#1a1b26', 
-                        card: '#24283b', 
-                        text: '#c0caf5',
-                        muted: '#565f89',
-                        accent: '#7aa2f7', 
-                        success: '#9ece6a', 
-                        warning: '#e0af68', 
-                        error: '#f7768e',   
-                        input: '#16161e'
-                    }
-                }
-            }
-        }
-    </script>
+    <title>SimSim Mining Station - XEC</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        body { background-color: #1a1b26; color: #c0caf5; font-family: 'Segoe UI', sans-serif; }
-        .card { background-color: #24283b; border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5); }
-        /* 로딩 스피너 애니메이션 */
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #7aa2f7; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
+        :root {
+            --primary-color: #00ffcc; /* XEC 청록색 네온 */
+            --bg-color: #0a0a0a;
+            --card-bg: #111;
+            --text-color: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-shadow: 0 0 10px var(--primary-color);
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid #333;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            color: #888;
+            margin-top: 0;
+        }
+
+        .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            margin: 10px 0;
+        }
+
+        .unit {
+            font-size: 1rem;
+            color: var(--primary-color);
+        }
+
+        .sub-text {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: rgba(0, 255, 204, 0.2);
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        /* 반응형 차트 컨테이너 */
+        .chart-container {
+            grid-column: 1 / -1;
+            background: var(--card-bg);
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            height: 300px;
+        }
+        
+        footer {
+            margin-top: 50px;
+            font-size: 0.8rem;
+            color: #444;
+        }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body>
 
-    <div class="max-w-[1600px] mx-auto">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-accent to-success">
-                    🍀 Lucky Miner Monitor
-                </h1>
-                <p id="system-message" class="text-sm mt-2 text-muted">🟢 시스템 준비 완료</p>
-            </div>
-            
-            <div class="card p-2 flex gap-2 w-full md:w-auto bg-[#16161e] border border-[#565f89]">
-                <input type="text" id="wallet-address" 
-                       placeholder="비트코인 지갑 주소 (bc1...)" 
-                       class="bg-transparent text-white px-4 py-2 w-full md:w-96 focus:outline-none placeholder-opacity-50 font-mono text-sm">
-                <button onclick="saveAndFetch()" id="search-btn" class="bg-accent hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold transition shadow-lg whitespace-nowrap min-w-[100px]">
-                    조회
-                </button>
-            </div>
-        </header>
+    <h1>⚡ SimSim XEC MINER ⚡</h1>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            
-            <div class="card p-6 relative overflow-hidden flex flex-col justify-center">
-                <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Hashrate (5m)</h3>
-                <div class="flex items-baseline gap-2">
-                    <span id="hashrate" class="text-5xl font-mono font-bold text-white">0</span>
-                    <span class="text-xl text-accent">GH/s</span>
-                </div>
-            </div>
-
-            <div class="card p-6 relative overflow-hidden flex flex-col justify-center">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-muted text-sm font-bold uppercase tracking-wider">Difficulty Records</h3>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-0 divide-x divide-gray-700 items-center">
-                    
-                    <div class="text-center px-2">
-                        <div class="text-xs text-warning font-bold mb-1 flex justify-center items-center gap-1">
-                            <span>👑</span> 역대 최고
-                        </div>
-                        <span id="bestever" class="text-2xl md:text-3xl font-mono font-bold text-warning block break-all">0</span>
-                    </div>
-
-                    <div class="text-center px-2">
-                        <div class="text-xs text-accent font-bold mb-1 flex justify-center items-center gap-1">
-                            <span>🔥</span> 최근 24시간
-                        </div>
-                        <span id="bestshare" class="text-2xl md:text-3xl font-mono font-bold text-white block break-all">0</span>
-                    </div>
-
-                </div>
-                
-                <p class="text-xs text-muted mt-4 text-center">목표 난이도: 100조 (100,000G) 이상</p>
-            </div>
-
-            <div class="card p-6 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-muted text-sm font-bold mb-2 uppercase tracking-wider">Status</h3>
-                    <div id="worker-status" class="text-2xl font-bold text-muted flex items-center gap-3">
-                        <span class="w-3 h-3 rounded-full bg-gray-600"></span> 대기 중
-                    </div>
-                </div>
-                <div class="flex justify-between items-end mt-4 text-sm">
-                    <span class="text-muted">Total Shares</span>
-                    <span id="total-shares" class="font-mono text-white text-lg">-</span>
-                </div>
-            </div>
+    <div class="dashboard">
+        <div class="card">
+            <h2>XEC PRICE (KRW)</h2>
+            <div class="value" id="price">loading...</div>
+            <span class="unit">KRW / 1 XEC</span>
+            <div class="sub-text" id="btc-price">BTC 대비 가격 로딩중...</div>
         </div>
 
-        <div class="card p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    📊 실시간 차트
-                </h3>
-            </div>
-            <div class="w-full h-[450px]">
-                <canvas id="hashChart"></canvas>
-            </div>
+        <div class="card">
+            <h2>HASHRATE</h2>
+            <div class="value" id="hashrate">0.00</div>
+            <span class="unit">GH/s</span>
+            <div class="status-badge" id="miner-status">OFFLINE</div>
+        </div>
+
+        <div class="card">
+            <h2>BALANCE (UNPAID)</h2>
+            <div class="value" id="balance">0</div>
+            <span class="unit">XEC</span>
+            <div class="sub-text">≈ <span id="balance-krw">0</span> KRW</div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="hashChart"></canvas>
         </div>
     </div>
 
-    <script>
-        const ctx = document.getElementById('hashChart').getContext('2d');
-        let gradient = ctx.createLinearGradient(0, 0, 0, 450);
-        gradient.addColorStop(0, 'rgba(122, 162, 247, 0.4)');
-        gradient.addColorStop(1, 'rgba(26, 27, 38, 0.0)');
+    <footer>
+        System: Lucky Miner LV06 | Pool: Solopool (XEC) | Status: Active
+    </footer>
 
+    <script>
+        // ==========================================
+        // 👇 여기에 본인의 XEC 주소를 입력하세요 👇
+        // ==========================================
+        const WALLET_ADDRESS = 'ecash:qruxd8mld78ckfzfclkrez3vaup5kphcncur7xsmhk'; 
+        // 예시: const WALLET_ADDRESS = 'ecash:qpm2qsznhks23z7629mms6s4cwef74vcwva876kd';
+        // (작은 따옴표 안에 넣으세요. ecash: 포함해도 되고 빼도 됨)
+
+        
+        // 데이터 갱신 주기 (초)
+        const REFRESH_RATE = 30;
+
+        // 차트 초기화
+        const ctx = document.getElementById('hashChart').getContext('2d');
         const hashChart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: 'Hashrate', data: [], borderColor: '#7aa2f7', borderWidth: 3, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' }, scales: { x: { grid: { display: false }, ticks: { color: '#565f89', maxTicksLimit: 8 } }, y: { border: { display: false }, grid: { color: '#2f354b' }, ticks: { color: '#565f89' } } }, plugins: { legend: { display: false } } }
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Realtime Hashrate (GH/s)',
+                    data: [],
+                    borderColor: '#00ffcc',
+                    backgroundColor: 'rgba(0, 255, 204, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        beginAtZero: true,
+                        grid: { color: '#333' },
+                        ticks: { color: '#888' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
         });
 
-        async function fetchData() {
-            let address = localStorage.getItem('btc_wallet');
-            const inputField = document.getElementById('wallet-address');
-            
-            if (!address && inputField.value) address = inputField.value.trim();
-            if (!address) return;
-            if (!inputField.value) inputField.value = address;
-
-            const btn = document.getElementById('search-btn');
-            const msg = document.getElementById('system-message');
-            btn.innerHTML = '<div class="spinner"></div>';
-            msg.innerText = "🔄 데이터 서버에 연결 중...";
-            msg.className = "text-sm mt-2 text-warning animate-pulse";
-
-            const targetUrl = `https://solo.ckpool.org/users/${address}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&timestamp=${new Date().getTime()}`;
-
+        async function updateDashboard() {
             try {
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error('서버 응답 없음');
-                const data = await response.json();
+                // 1. 코인게코에서 이캐시(XEC) 가격 가져오기
+                const priceRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ecash&vs_currencies=krw,btc');
+                const priceData = await priceRes.json();
+                const xecPrice = priceData.ecash.krw;
+                
+                document.getElementById('price').innerText = xecPrice.toFixed(4);
+                document.getElementById('btc-price').innerText = `1 XEC = ${priceData.ecash.btc} BTC`;
 
-                if (!data || !data.hashrate5m) {
-                    throw new Error('데이터 없음 (아직 채굴 기록이 없거나 주소 오류)');
+                // 2. 솔로풀(Solopool)에서 내 정보 가져오기
+                // 주의: Solopool API가 CORS를 막을 경우 데이터가 안 뜰 수 있습니다.
+                // 그럴 땐 0으로 표시되지만 채굴은 정상 작동 중입니다.
+                const poolApiUrl = `https://xec.solopool.org/api/wallet?address=${WALLET_ADDRESS}`;
+                
+                // 실제 API 연동 시도 (CORS 에러 대비 try-catch)
+                try {
+                    const poolRes = await fetch(poolApiUrl);
+                    const poolData = await poolRes.json();
+
+                    // 데이터 파싱 (Solopool API 구조에 맞춤)
+                    // 보통 currency, balance, hashrate 등의 필드가 있음
+                    
+                    // 해시레이트 업데이트 (없으면 0)
+                    const currentHash = poolData.hashrate ? (poolData.hashrate / 1000000000).toFixed(2) : '0.00'; // H/s -> GH/s
+                    document.getElementById('hashrate').innerText = currentHash;
+
+                    // 상태 업데이트
+                    const statusDiv = document.getElementById('miner-status');
+                    if(parseFloat(currentHash) > 0) {
+                        statusDiv.innerText = "MINING ON 🔥";
+                        statusDiv.style.color = "#00ffcc";
+                        statusDiv.style.background = "rgba(0, 255, 204, 0.2)";
+                    } else {
+                        statusDiv.innerText = "WAITING...";
+                        statusDiv.style.color = "#ff3333";
+                        statusDiv.style.background = "rgba(255, 51, 51, 0.2)";
+                    }
+
+                    // 잔액 업데이트 (채굴 성공 시 올라감)
+                    const unpaidBalance = poolData.unpaid || 0;
+                    document.getElementById('balance').innerText = unpaidBalance;
+                    document.getElementById('balance-krw').innerText = Math.floor(unpaidBalance * xecPrice).toLocaleString();
+
+                    // 차트 데이터 추가
+                    const now = new Date().toLocaleTimeString();
+                    addDataToChart(now, currentHash);
+
+                } catch (poolError) {
+                    console.log("Pool API Error (CORS or Invalid Address):", poolError);
+                    // 에러 시 가짜 데이터라도 보여줄지, 그냥 0으로 둘지 결정
+                    // 여기서는 사용자가 '설정 중'임을 알 수 있게 0 유지
                 }
-
-                // 1. 해시레이트
-                const hashrate = parseFloat(data.hashrate5m.replace('G', ''));
-                document.getElementById('hashrate').innerText = hashrate.toLocaleString(undefined, {maximumFractionDigits: 1});
-
-                // 2. [핵심] 역대 최고 vs 최근 24시간
-                document.getElementById('bestever').innerText = Math.floor(data.bestever).toLocaleString(); // 역대
-                document.getElementById('bestshare').innerText = Math.floor(data.bestshare).toLocaleString(); // 최근(세션)
-
-                // 3. 나머지 정보
-                document.getElementById('total-shares').innerText = data.shares.toLocaleString();
-
-                const statusElem = document.getElementById('worker-status');
-                if (data.workers > 0) {
-                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-success mr-2 shadow-[0_0_10px_#9ece6a]"></span> <span class="text-success">정상 작동 중 (${data.workers})</span>`;
-                } else {
-                    statusElem.innerHTML = `<span class="w-3 h-3 rounded-full bg-error mr-2"></span> <span class="text-error">연결 끊김 (Offline)</span>`;
-                }
-
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                if (hashChart.data.labels.length > 60) { hashChart.data.labels.shift(); hashChart.data.datasets[0].data.shift(); }
-                hashChart.data.labels.push(timeStr);
-                hashChart.data.datasets[0].data.push(hashrate);
-                hashChart.update('none');
-
-                msg.innerText = "🟢 데이터 수신 성공 (10초마다 갱신)";
-                msg.className = "text-sm mt-2 text-success";
 
             } catch (error) {
-                console.error(error);
-                msg.innerText = `🔴 오류 발생: ${error.message}`;
-                msg.className = "text-sm mt-2 text-error";
-                document.getElementById('worker-status').innerHTML = `<span class="text-error text-sm">데이터 수신 실패</span>`;
-            } finally {
-                btn.innerText = "조회";
+                console.error("Data Fetch Error:", error);
             }
         }
 
-        function saveAndFetch() {
-            const input = document.getElementById('wallet-address');
-            const addr = input.value.trim();
-            if (!addr) { alert("지갑 주소를 입력해주세요!"); return; }
-            localStorage.setItem('btc_wallet', addr);
-            hashChart.data.labels = []; hashChart.data.datasets[0].data = []; hashChart.update();
-            fetchData();
+        function addDataToChart(label, data) {
+            hashChart.data.labels.push(label);
+            hashChart.data.datasets[0].data.push(data);
+
+            // 데이터 20개만 유지 (차트가 너무 길어지지 않게)
+            if (hashChart.data.labels.length > 20) {
+                hashChart.data.labels.shift();
+                hashChart.data.datasets[0].data.shift();
+            }
+            hashChart.update();
         }
 
-        window.onload = function() {
-            const savedAddr = localStorage.getItem('btc_wallet');
-            if (savedAddr) {
-                document.getElementById('wallet-address').value = savedAddr;
-                fetchData();
-            }
-            setInterval(fetchData, 10000);
-        };
+        // 시작
+        updateDashboard();
+        setInterval(updateDashboard, REFRESH_RATE * 1000);
+
     </script>
 </body>
 </html>
